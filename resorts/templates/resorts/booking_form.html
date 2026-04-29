@@ -1,0 +1,40 @@
+{% extends "resorts/base.html" %}
+
+{% block title %}Бронирование{% endblock %}
+
+{% block content %}
+  <div class="card" style="max-width: 760px;">
+    <div class="muted">Тур: <a href="{{ tour.get_absolute_url }}">{{ tour.title }}</a></div>
+    <h2 style="margin: 8px 0 12px 0;">
+      {% if booking %}Редактировать бронирование{% else %}Оформить бронирование{% endif %}
+    </h2>
+
+    <form method="post">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="card" style="border-color: rgba(255,120,120,0.55);">
+          {{ form.non_field_errors }}
+        </div>
+      {% endif %}
+
+      <div style="margin-bottom: 12px;">
+        <label class="muted">{{ form.people_count.label }}</label><br>
+        {{ form.people_count }}
+        <div class="muted" style="margin-top:6px;">Свободно мест: {{ tour.free_places }}</div>
+        {% if form.people_count.errors %}{{ form.people_count.errors }}{% endif %}
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <label class="muted">{{ form.services.label }}</label><br>
+        {{ form.services }}
+        {% if form.services.errors %}{{ form.services.errors }}{% endif %}
+      </div>
+
+      <button class="btn" type="submit">
+        {% if booking %}Сохранить изменения{% else %}Создать бронь{% endif %}
+      </button>
+      <a class="btn" href="{% url 'resorts:my_bookings' %}">Отмена</a>
+    </form>
+  </div>
+{% endblock %}
+

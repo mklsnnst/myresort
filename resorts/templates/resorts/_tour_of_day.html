@@ -1,0 +1,37 @@
+{% if tour_of_day %}
+    <div style="text-align: center;">
+        {% if from_context %}
+            <div style="font-size: 9px; opacity: 0.4; margin-bottom: 5px;">
+                данные из контекста: {{ today|date:"d.m.Y" }}
+            </div>
+        {% endif %}
+        
+        <div style="font-size: 48px; margin-bottom: 8px;"></div>
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.6; margin-bottom: 12px;">
+            Случайный выбор
+        </div>
+        <h4 style="margin: 10px 0 5px;">
+            <a href="{% url 'resorts:tour_detail' tour_of_day.pk %}">{{ tour_of_day.title }}</a>
+        </h4>
+        <div class="muted" style="font-size: 14px;">
+            {{ tour_of_day.location|default:"—" }}
+        </div>
+        <div style="margin: 12px 0;">
+            <span class="pill">{{ tour_of_day.price|floatformat:0 }} ₽</span>
+        </div>
+        <div style="margin-bottom: 8px;">
+            <span class="muted">{{ tour_of_day.start_date|date:"d.m.Y" }}</span>
+        </div>
+        <div>
+            <span class="muted"> Свободно: {{ tour_of_day.free_places }} мест</span>
+        </div>
+        <div style="margin-top: 16px;">
+            <a class="btn" href="{% url 'resorts:tour_detail' tour_of_day.pk %}">Подробнее →</a>
+        </div>
+    </div>
+{% else %}
+    <div style="text-align: center; padding: 20px;">
+        <div style="font-size: 32px; opacity: 0.5;">🎿</div>
+        <div class="muted" style="margin-top: 10px;">Пока нет предстоящих туров</div>
+    </div>
+{% endif %}

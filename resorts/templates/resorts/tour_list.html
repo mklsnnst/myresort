@@ -1,0 +1,99 @@
+{% extends "resorts/base.html" %}
+{% load resort_tags %}
+
+{% block title %}Туры{% endblock %}
+
+{% block content %}
+
+  <div class="grid" style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 18px;">
+    
+    {# ЛЕВАЯ КОЛОНКА: список туров #}
+    <div class="card">
+      <h2 style="margin:0 0 10px 0;">Туры</h2>
+      <form method="get" class="row" style="margin: 10px 0 14px 0;">
+        <div>
+          <label class="muted">Поиск</label><br>
+          <input name="q" value="{{ request.GET.q }}" placeholder="Название тура">
+        </div>
+        <div>
+          <label class="muted">Локация</label><br>
+          <input name="location" value="{{ request.GET.location }}" placeholder="Например: Сочи">
+        </div>
+        <div>
+          <label class="muted">Сложность</label><br>
+          <select name="difficulty">
+            <option value="">Любая</option>
+            {% for value,label in difficulty_choices %}
+              <option value="{{ value }}" {% if request.GET.difficulty == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="muted">Сортировка</label><br>
+          <select name="sort">
+            <option value="date" {% if request.GET.sort != "price" %}selected{% endif %}>По дате</option>
+            <option value="price" {% if request.GET.sort == "price" %}selected{% endif %}>По цене</option>
+          </select>
+        </div>
+        <div style="align-self:end;">
+          <button class="btn" type="submit">Применить</button>
+        </div>
+      </form>
+
+      {% if tours_page.object_list %}
+        <div class="row" style="gap: 14px;">
+          {% for tour in tours_page.object_list %}
+            <div class="card" style="flex:1 1 320px;">
+              <div class="muted">Старт: {{ tour.start_date|date:"d.m.Y" }}</div>
+              <h3 style="margin: 6px 0 10px 0;">
+                <a href="{{ tour.get_absolute_url }}">{{ tour.title }}</a>
+              </h3>
+              <div class="muted">{{ tour.location|default:"—" }}</div>
+              <div style="margin-top:10px;">
+                Цена: <strong>{{ tour.price|floatformat:0 }}</strong> ₽
+              </div>
+              <div class="muted" style="margin-top:8px;">
+                Одобренных отзывов: {{ tour.approved_reviews }}
+              </div>
+              <div style="margin-top: 12px;">
+                <a class="btn" href="{{ tour.get_absolute_url }}">Подробнее</a>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+
+        <div class="pager">
+          {% if tours_page.has_previous %}
+            <a class="btn" href="?{% if request.GET.q %}q={{ request.GET.q|urlencode }}&{% endif %}{% if request.GET.location %}location={{ request.GET.location|urlencode }}&{% endif %}{% if request.GET.difficulty %}difficulty={{ request.GET.difficulty|urlencode }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort|urlencode }}&{% endif %}page={{ tours_page.previous_page_number }}">Назад</a>
+          {% endif %}
+          <span class="pill">Страница {{ tours_page.number }} / {{ tours_page.paginator.num_pages }}</span>
+          {% if tours_page.has_next %}
+            <a class="btn" href="?{% if request.GET.q %}q={{ request.GET.q|urlencode }}&{% endif %}{% if request.GET.location %}location={{ request.GET.location|urlencode }}&{% endif %}{% if request.GET.difficulty %}difficulty={{ request.GET.difficulty|urlencode }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort|urlencode }}&{% endif %}page={{ tours_page.next_page_number }}">Вперёд</a>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="muted">Ничего не найдено.</div>
+      {% endif %}
+    </div>
+
+ 
+    <div class="card">
+      <h3 style="margin:0 0 10px 0;"> Тур дня</h3>
+      {% tour_of_day %}
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 10px 0;"> Подборка</h3>
+      {% featured_tours 3 as ftours %}
+      {% for t in ftours %}
+        <div style="margin-bottom: 12px;">
+          <a href="{{ t.get_absolute_url }}"><strong>{{ t.title|truncatechars:26 }}</strong></a><br>
+          <span class="muted">{{ t.start_date|date:"d.m.Y" }} · {{ t.price|floatformat:0 }} ₽</span>
+        </div>
+      {% empty %}
+        <div class="muted">Пока нет туров.</div>
+      {% endfor %}
+    </div>
+    
+  </div>
+{% endblock %}

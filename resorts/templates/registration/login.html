@@ -1,0 +1,15 @@
+{% extends "resorts/base.html" %}
+
+{% block title %}Вход{% endblock %}
+
+{% block content %}
+  <div class="card" style="max-width: 520px;">
+    <h2 style="margin:0 0 12px 0;">Вход</h2>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="btn" type="submit">Войти</button>
+    </form>
+  </div>
+{% endblock %}
+

@@ -1,0 +1,15 @@
+{% if request.user.is_authenticated %}
+    <div class="row" style="align-items:center;">
+        <span class="pill">Привет, <strong>{{ request.user.username }}</strong></span>
+        <a class="btn" href="{% url 'resorts:my_bookings' %}">Мои бронирования</a>
+        <form method="post" action="{% url 'logout' %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn">Выйти</button>
+        </form>
+    </div>
+{% else %}
+    <div class="row" style="align-items:center;">
+        <a class="btn" href="{% url 'login' %}">Войти</a>
+        <a class="btn" href="{% url 'resorts:signup' %}">Регистрация</a>
+    </div>
+{% endif %}

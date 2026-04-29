@@ -1,0 +1,39 @@
+{% extends "resorts/base.html" %}
+
+{% block title %}Мои бронирования{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h2 style="margin:0 0 12px 0;">Мои бронирования</h2>
+    {% for b in bookings %}
+      <div class="card" style="margin-bottom: 12px;">
+        <div class="muted">Создано: {{ b.created_at|date:"d.m.Y H:i" }}</div>
+        <div>
+          <strong>Тур:</strong> <a href="{{ b.tour.get_absolute_url }}">{{ b.tour.title }}</a>
+        </div>
+        <div>
+          <strong>Статус:</strong> {{ b.get_status_display }} ·
+          <strong>Людей:</strong> {{ b.people_count }} ·
+          <strong>Итого:</strong> {{ b.total_price|floatformat:0 }} ₽
+        </div>
+        {% if b.booking_services.all %}
+          <div class="muted" style="margin-top: 8px;">
+            Услуги:
+            {% for bs in b.booking_services.all %}
+              {{ bs.service.name }}{% if not forloop.last %}, {% endif %}
+            {% empty %}
+              нет
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div style="margin-top: 10px;">
+          <a class="btn" href="{% url 'resorts:booking_update' pk=b.pk %}">Редактировать</a>
+          <a class="btn" href="{% url 'resorts:booking_delete' pk=b.pk %}">Удалить</a>
+        </div>
+      </div>
+    {% empty %}
+      <div class="muted">У вас пока нет бронирований.</div>
+    {% endfor %}
+  </div>
+{% endblock %}
+
