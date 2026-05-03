@@ -6,7 +6,12 @@ from . import views
 app_name = "resorts"
 
 urlpatterns = [
-    path("", views.tour_list, name="tour_list"),
+    path("", views.home, name="home"),
+    path("tours/catalog/", views.tour_list, name="tour_list"),
+    path("tours/search/", views.tour_search, name="tour_search"),
+    path("tours/popular/", views.tour_popular_list, name="tour_popular_list"),
+    path("tours/soon/", views.tour_soon_list, name="tour_soon_list"),
+    path("tours/upcoming/", views.tour_upcoming_list, name="tour_upcoming_list"),
     path("tours/<int:pk>/", views.tour_detail, name="tour_detail"),
     path("tours/<int:pk>/book/", views.booking_create, name="booking_create"),
     path("my/bookings/", views.my_bookings, name="my_bookings"),

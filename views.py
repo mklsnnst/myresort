@@ -1,3 +1,5 @@
+import hashlib
+
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -8,8 +10,99 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from .forms import BookingCreateForm, BookingUpdateForm, SignupForm
+from .forms import BookingCreateForm, BookingUpdateForm, SignupForm, TourSearchForm
 from .models import Booking, Tour
+from .tour_queries import annotate_widget_stats, apply_catalog_text_filters, search_tours_by_title_or_location
+
+
+def _pick_tour_of_day(upcoming_qs):
+    """Один «тур дня» из предстоящих, детерминированно от даты (обновляется раз в сутки)."""
+    qs = annotate_widget_stats(upcoming_qs).order_by("id")
+    candidates = list(qs)
+    if not candidates:
+        return None
+    day_key = timezone.localdate().isoformat()
+    h = int(hashlib.sha256(day_key.encode()).hexdigest(), 16)
+    return candidates[h % len(candidates)]
+
+
+def home(request):
+    """Главная: горнолыжные туры по России, виджеты и поиск."""
+    upcoming = Tour.objects.upcoming()
+    popular_tours = annotate_widget_stats(upcoming).order_by(
+        "-booking_count", "-start_date", "-id"
+    )[:5]
+    soon_tours = annotate_widget_stats(upcoming).order_by("start_date", "id")[:5]
+    tour_of_day = _pick_tour_of_day(upcoming)
+    search_form = TourSearchForm()
+
+    return render(
+        request,
+        "resorts/home.html",
+        {
+            "popular_tours": popular_tours,
+            "soon_tours": soon_tours,
+            "tour_of_day": tour_of_day,
+            "search_form": search_form,
+            "today": timezone.localdate(),
+        },
+    )
+
+
+def tour_popular_list(request):
+    upcoming = Tour.objects.upcoming()
+    tours = annotate_widget_stats(upcoming).order_by(
+        "-booking_count", "-start_date", "-id"
+    )
+    return render(
+        request,
+        "resorts/tour_popular_list.html",
+        {"tours": tours, "page_title": "Популярные туры"},
+    )
+
+
+def tour_soon_list(request):
+    upcoming = Tour.objects.upcoming()
+    tours = annotate_widget_stats(upcoming).order_by("start_date", "id")
+    return render(
+        request,
+        "resorts/tour_soon_list.html",
+        {"tours": tours, "page_title": "Скоро начнутся"},
+    )
+
+
+def tour_upcoming_list(request):
+    """Все предстоящие (для ссылки «все туры» у блока «Тур дня»)."""
+    upcoming = Tour.objects.upcoming()
+    tours = annotate_widget_stats(upcoming).order_by("start_date", "id")
+    return render(
+        request,
+        "resorts/tour_upcoming_list.html",
+        {"tours": tours, "page_title": "Все предстоящие туры"},
+    )
+
+
+def tour_search(request):
+    """Результаты поиска по названию или локации (отдельная страница)."""
+    form = TourSearchForm(request.GET or None)
+    results = []
+    if form.is_valid():
+        term = (form.cleaned_data.get("query") or "").strip()
+        if term:
+            results = list(
+                annotate_widget_stats(
+                    search_tours_by_title_or_location(term)
+                ).order_by("start_date", "id")
+            )
+    return render(
+        request,
+        "resorts/tour_search_results.html",
+        {
+            "form": form,
+            "results": results,
+            "has_query": form.is_valid() and (form.cleaned_data.get("query") or "").strip(),
+        },
+    )
 
 
 def tour_list(request):
@@ -18,17 +111,19 @@ def tour_list(request):
         request.session['visit_count'] = 1
     else:
         request.session['visit_count'] += 1
-    qs = (
-    Tour.objects.upcoming()
-    .filter(title__icontains=request.GET.get("q", "").strip())
-    .filter(location__icontains=request.GET.get("location", "").strip())
-    .filter(description__icontains=request.GET.get("description_contains", "").strip())  # ← исправлено
-        )
+    # Все туры (не только upcoming): иначе фильтры каталога не находят записи с прошедшим end_date.
+    qs = Tour.objects.all()
+    qs = apply_catalog_text_filters(
+        qs,
+        q=request.GET.get("q", ""),
+        location=request.GET.get("location", ""),
+        description=request.GET.get("description_contains", ""),
+    )
     difficulty = request.GET.get("difficulty", "").strip()
     if difficulty:
         qs = qs.filter(difficulty_level=difficulty)
 
-    qs = qs.exclude(reviews__moderation_status="rejected")
+    qs = qs.exclude(reviews__moderation_status="rejected").distinct()
 
     sort = request.GET.get("sort", "date")
     if sort == "price":
@@ -189,7 +284,7 @@ def booking_delete(request, pk: int):
 
 def signup(request):
     if request.user.is_authenticated:
-        return redirect("resorts:tour_list")
+        return redirect("resorts:home")
 
     if request.method == "POST":
         form = SignupForm(request.POST, request.FILES)
@@ -203,7 +298,7 @@ def signup(request):
                 request.session["signup_bio"] = bio
             if uploaded_file:
                 request.session["signup_file_name"] = uploaded_file.name
-            return HttpResponseRedirect(reverse("resorts:tour_list"))
+            return HttpResponseRedirect(reverse("resorts:home"))
     else:
         form = SignupForm()
 

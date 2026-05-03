@@ -15,7 +15,12 @@ class TourQuerySet(models.QuerySet):
     def in_location(self, q: str):
         if not q:
             return self
-        return self.filter(location__icontains=q)
+        variants = {q, q.lower(), q.upper(), q.capitalize()}
+        cond = Q()
+        for v in variants:
+            if v:
+                cond |= Q(location__icontains=v)
+        return self.filter(cond)
 
     def with_free_places(self):
         # Пример "__" с обращением к связанной таблице (bookings__status).

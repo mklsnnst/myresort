@@ -6,6 +6,19 @@ from django.utils import timezone
 from .models import Booking, Service
 
 
+class TourSearchForm(forms.Form):
+    query = forms.CharField(
+        label="Название тура или локация",
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "Например: Шерегеш, Красная поляна…",
+                "style": "min-width: 260px;",
+            }
+        ),
+    )
+
+
 class SignupForm(UserCreationForm):
     email = forms.EmailField(required=False)
     bio = forms.CharField(
