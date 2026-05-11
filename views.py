@@ -10,7 +10,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from .forms import BookingCreateForm, BookingUpdateForm, SignupForm, TourSearchForm
+from .forms import (
+    BookingCreateForm,
+    BookingUpdateForm,
+    SignupForm,
+    TourManageForm,
+    TourSearchForm,
+)
 from .models import Booking, Tour
 from .tour_queries import annotate_widget_stats, apply_catalog_text_filters, search_tours_by_title_or_location
 
@@ -27,7 +33,6 @@ def _pick_tour_of_day(upcoming_qs):
 
 
 def home(request):
-    """Главная: горнолыжные туры по России, виджеты и поиск."""
     upcoming = Tour.objects.upcoming()
     popular_tours = annotate_widget_stats(upcoming).order_by(
         "-booking_count", "-start_date", "-id"
@@ -83,7 +88,6 @@ def tour_upcoming_list(request):
 
 
 def tour_search(request):
-    """Результаты поиска по названию или локации (отдельная страница)."""
     form = TourSearchForm(request.GET or None)
     results = []
     if form.is_valid():
@@ -111,7 +115,6 @@ def tour_list(request):
         request.session['visit_count'] = 1
     else:
         request.session['visit_count'] += 1
-    # Все туры (не только upcoming): иначе фильтры каталога не находят записи с прошедшим end_date.
     qs = Tour.objects.all()
     qs = apply_catalog_text_filters(
         qs,
@@ -162,10 +165,14 @@ def tour_list(request):
 
 def tour_detail(request, pk: int):
     tour = get_object_or_404(
-        Tour.objects.prefetch_related("images", "services", "reviews__user"),
+        Tour.objects.prefetch_related("images", "services", "reviews__user", "bookings__user"),
         pk=pk,
     )
     approved_reviews = tour.reviews.filter(moderation_status="approved").order_by("-created_at")
+    services = tour.services.order_by("price", "id")
+    gallery_images = tour.images.order_by("-uploaded_at")
+    recent_bookings = tour.bookings.select_related("user").order_by("-created_at")[:5]
+    bookings_count = tour.bookings.exclude(status="cancelled").count()
 
     # Агрегирование (пример): средняя оценка
     rating_avg = approved_reviews.aggregate(avg=Avg("rating")).get("avg")
@@ -177,7 +184,81 @@ def tour_detail(request, pk: int):
             "tour": tour,
             "approved_reviews": approved_reviews,
             "rating_avg": rating_avg,
+            "services": services,
+            "gallery_images": gallery_images,
+            "recent_bookings": recent_bookings,
+            "bookings_count": bookings_count,
         },
+    )
+
+
+def tour_manage_list(request):
+    tours = (
+        Tour.objects.all()
+        .annotate(bookings_count=Count("bookings", filter=~Q(bookings__status="cancelled")))
+        .order_by("-start_date", "-id")
+    )
+    return render(
+        request,
+        "resorts/tour_manage_list.html",
+        {
+            "tours": tours,
+            "tours_count": tours.count(),
+            "demo_recommended_min": 8,
+        },
+    )
+
+
+def tour_create(request):
+    if request.method == "POST":
+        form = TourManageForm(request.POST, request.FILES)
+        if form.is_valid():
+            tour = form.save(commit=False)
+            if request.user.is_authenticated:
+                tour.created_by = request.user
+            tour.save()
+            messages.success(request, f"Тур «{tour.title}» добавлен.")
+            return redirect("resorts:tour_detail", pk=tour.pk)
+    else:
+        form = TourManageForm()
+    return render(
+        request,
+        "resorts/tour_manage_form.html",
+        {"form": form, "mode": "create"},
+    )
+
+
+def tour_update(request, pk: int):
+    tour = get_object_or_404(Tour, pk=pk)
+    if request.method == "POST":
+        form = TourManageForm(request.POST, request.FILES, instance=tour)
+        if form.is_valid():
+            tour = form.save()
+            messages.success(request, f"Тур «{tour.title}» обновлён.")
+            return redirect("resorts:tour_detail", pk=tour.pk)
+    else:
+        form = TourManageForm(instance=tour)
+    return render(
+        request,
+        "resorts/tour_manage_form.html",
+        {"form": form, "mode": "update", "tour": tour},
+    )
+
+
+def tour_delete(request, pk: int):
+    tour = get_object_or_404(Tour, pk=pk)
+    if request.method == "POST":
+        title = tour.title
+        deleted_count, _ = Tour.objects.filter(pk=tour.pk).delete()
+        messages.success(
+            request,
+            f"Тур «{title}» удалён (записей: {deleted_count}).",
+        )
+        return redirect("resorts:tour_list")
+    return render(
+        request,
+        "resorts/tour_manage_confirm_delete.html",
+        {"tour": tour},
     )
 
 

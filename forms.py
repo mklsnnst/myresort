@@ -3,7 +3,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.utils import timezone
 
-from .models import Booking, Service
+from .models import Booking, Service, Tour
 
 
 class TourSearchForm(forms.Form):
@@ -116,4 +116,45 @@ class BookingUpdateForm(BookingCreateForm):
             "updated_at",
             "services",
         )
+
+
+class TourManageForm(forms.ModelForm):
+    class Meta:
+        model = Tour
+        fields = (
+            "title",
+            "location",
+            "difficulty_level",
+            "start_date",
+            "end_date",
+            "price",
+            "capacity",
+            "description",
+            "main_image",
+            "official_url",
+            "brochure",
+        )
+        widgets = {
+            "title": forms.TextInput(attrs={"placeholder": "Название тура"}),
+            "location": forms.TextInput(attrs={"placeholder": "Локация"}),
+            "start_date": forms.DateInput(attrs={"type": "date"}),
+            "end_date": forms.DateInput(attrs={"type": "date"}),
+            "price": forms.NumberInput(attrs={"min": 0, "step": "0.01"}),
+            "capacity": forms.NumberInput(attrs={"min": 1}),
+            "description": forms.Textarea(attrs={"rows": 4}),
+            "official_url": forms.URLInput(attrs={"placeholder": "https://example.com"}),
+        }
+        labels = {
+            "title": "Название тура",
+            "location": "Локация",
+            "difficulty_level": "Сложность",
+            "start_date": "Дата начала",
+            "end_date": "Дата окончания",
+            "price": "Цена",
+            "capacity": "Вместимость",
+            "description": "Описание",
+            "main_image": "Главное изображение",
+            "official_url": "Официальная ссылка",
+            "brochure": "Файл/брошюра",
+        }
 
